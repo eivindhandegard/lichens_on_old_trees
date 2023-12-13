@@ -1,0 +1,392 @@
+---
+title: "lichens_on_old_trees"
+format: "html"
+editor: visual
+warning: false
+---
+
+### finding the directory
+
+```{r}
+here::here()
+
+```
+
+### Packages
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(lme4)
+library(here)
+
+
+```
+
+### Species data import and formatting whole tree
+
+```{r}
+
+
+#importing the lichen data
+lichen.data <- read_excel("lichen_data.xlsx", range = "B5:R31316")
+
+
+# replacing in NA values in the numeric and logical variables####
+lichen.data |>
+  dplyr :: select(6:12) |>
+  mutate(
+    across(everything(), ~replace_na(.x, 0))
+  )   -> data.subset
+
+lichen.data[,6:12] <- data.subset
+
+
+# finding the lichen species richness for each tree#####
+lichen.data |>
+  group_by(tree_number,locality,datatype, muncipality) %>%
+  count(individuals > 0) |>
+filter(`individuals > 0` == TRUE) |>
+  arrange(locality,tree_number) -> lichen.data_richness
+
+
+```
+
+### Environmental variables import and formatting
+
+```{r}
+
+
+lichenoldtrees_treedata <- readxl::read_xlsx( "lichenoldtrees_treedata_corrected.xlsx", 
+                                      range = "B7:AS407")
+
+
+
+#Formatting the data and making the needed variables----
+lichenoldtrees_treedata |>
+  mutate(crownlength_percent = (crownlength/tree_height)*100) %>%
+  mutate(site_index = as.character(site_index)) |>
+  mutate(vegetation_type == factor(vegetation_type,levels = c("Myr",
+                                                              "Sump",
+                                                              "Lav",
+                                                              "Blokkebeer",
+                                                              "Berlyng", 
+                                                              "Blaabeer", 
+                                                              "Smaabregne",
+                                                              "Hogstaude",
+                                                              "laagurt"))) |>
+  mutate(bark_structure.factor = factor(bark_structure, levels = c("1","2","3","4","5"))) %>%
+  mutate(bark_color.factor = factor(bark_color, levels = c("1","2","3","4","5")))  |>
+  mutate(Mork_Hengelav.factor = factor(Mork_Hengelav, levels = c("0","1","2"))) %>%
+  mutate(Lys_Hengelav.factor = factor(Lys_hengelav, levels = c("0","1","2"))) %>%
+  mutate(branch_thickness.bin = as.integer(branch_thickness > 0)) |>
+  mutate(crookedness.factor = factor(crookedness, levels = c("1","2","3","4","5"))) -> lichenoldtrees_treedata
+#site_indexer blir numeriske 
+lichenoldtrees_treedata$site_index <- sub('.', '', lichenoldtrees_treedata$site_index)
+lichenoldtrees_treedata$site_index <- as.numeric(lichenoldtrees_treedata$site_index)
+lichenoldtrees_treedata$elevation <- as.numeric(lichenoldtrees_treedata$elevation )
+
+
+#Transforming branch_thickness into numeric
+lichenoldtrees_treedata$branch_thickness.numeric <- as.numeric(lichenoldtrees_treedata$branch_thickness)
+lichenoldtrees_treedata$vertical_forest_structure.factor <- as.factor(lichenoldtrees_treedata$vertical_forest_structure)
+factor(lichenoldtrees_treedata$vertical_forest_structure.factor, levels = c("Ensjiktet", "Tosjiktet", "Flersjiktet"))
+lichenoldtrees_treedata$plot <- factor(lichenoldtrees_treedata$plot)
+lichenoldtrees_treedata$age <- round(lichenoldtrees_treedata$age, digits = 0)
+
+
+lichenoldtrees_treedata |>
+  mutate( surface_area_tree_m2 = ((((2*pi)*(((dbh^2)/2)))/((2*pi)*(dbh/2))*200))/10000) -> lichenoldtrees_treedata
+
+
+
+# remember that all the column names have to match
+joined.fielddata <- full_join(lichenoldtrees_treedata,lichen.data_richness  )
+ 
+joined.fielddata |>
+  mutate(species = n) |>
+  mutate(locality =factor(locality)) |>
+  filter(!is.na(species)) -> species_richness_age
+
+
+# making one dataframe for each tree species
+species_richness_age |>
+  filter(!tree_species == "spruce")  -> pine_species_richness_age
+
+species_richness_age |>
+  filter(!tree_species == "pine") -> spruce_species_richness_age
+
+
+```
+
+### Pine exploratory age plot
+
+```{r}
+pine_species_richness_age |>
+  ggplot(aes(y= species, x = age)) +
+  geom_point(size = 5) +
+  geom_smooth(method = "lm") +
+  guides(color = guide_legend(title = "Site index")) +
+  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
+        , axis.line = element_line(colour = "black", size = 1)
+        , axis.ticks.length=unit(.25, "cm")
+        ,  panel.background = element_blank()
+        , axis.title.y = element_text(size = 22, face = "bold")
+        , axis.text.y = element_text(size = 20)
+        , axis.text.x = element_text(size = 20)
+        , axis.title.x = element_text(size = 22, face = "bold" )
+        , plot.title = element_text(size = 14)
+        , legend.text = element_text(size = 20)
+        , legend.title = element_text(size = 22, face = "bold")) +
+    xlim(0,425) +
+  ylim(0,30) -> pine_species_richness_age.plot
+
+# ggsave("pine_species_richness_age.plot.jpeg",pine_species_richness_age.plot, dpi = 250)
+# 15.9 x 11.3 brukt tidligere
+
+
+print(pine_species_richness_age.plot)
+```
+
+### Spruce exploratory age plot
+
+```{r}
+
+spruce_species_richness_age|>
+  ggplot(aes(y= species, x = age)) +
+  geom_point(aes(), size = 5) +
+  geom_smooth(method = "lm" ) +
+  guides(color = guide_legend(title = "Site index")) +
+  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
+        , axis.line = element_line(colour = "black", size = 1)
+        , axis.ticks.length=unit(.25, "cm")
+        ,  panel.background = element_blank()
+        , axis.title.y = element_text(size = 22, face = "bold")
+        , axis.text.y = element_text(size = 20)
+        , axis.text.x = element_text(size = 20)
+        , axis.title.x = element_text(size = 22, face = "bold" )
+        , plot.title = element_text(size = 14)
+        , legend.text = element_text(size = 20)
+        , legend.title = element_text(size = 22, face = "bold")) +
+  xlim(0,425) +
+  ylim(0,30) -> spruce_species_richness_age.plot
+# ggsave("spruce_species_richness_age.jpeg",spruce_species_richness_age.plot, dpi = 250)
+
+print(spruce_species_richness_age.plot)
+```
+
+### Models species richness on the entire sample trees
+
+```{r}
+#####
+
+pinemod<- glmer.nb(species~ 
+                  scale(age, center = T, scale = T) 
+                  + scale(site_index, center = T, scale = T)
+                  + scale(surface_area_tree_m2, center = T, scale = T)
+                  + as.ordered(pine_species_richness_age$branch_thickness)
+                  + scale(elevation, center = T, scale = T)
+                + (1|plot/locality), data = pine_species_richness_age)
+
+
+sprucemod <- glmer.nb(species~ scale(age, center = T, scale = T) 
+                      + scale(site_index, center = T, scale = T)
+                      + scale(surface_area_tree_m2, center = T, scale = T)
+                      + scale(branch_thickness.numeric, center = T, scale = T)
+                      #+ scale(elevation, center = T, scale = T)
+                    + (1|plot/locality) , data = spruce_species_richness_age)
+
+
+
+sjPlot:: tab_model(sprucemod,pinemod)
+
+
+```
+
+## size independent inventory
+
+Importing the species data from the plots
+
+```{r}
+#importing the lichen data####
+lichen.data <- read_excel("lichen_data.xlsx", range = "B5:R31316")
+
+# replacing in NA values in the numeric and logical variables####
+lichen.data |>
+  dplyr :: select(6:16) |>
+  mutate(
+    across(everything(), ~replace_na(.x, 0))
+  )   -> data.subset
+
+lichen.data[,6:16] <- data.subset
+
+
+
+# finding the lichen species richness for each tree#####
+lichen.data |>
+  mutate(sub.plot = as.numeric(southside) + as.numeric(northside)) |>
+  mutate(sub.plot = as.numeric(sub.plot > 0)) |>
+   group_by(tree_number,locality,datatype, muncipality) %>%
+  summarise( sum(sub.plot)) |>
+  arrange(locality,tree_number)  -> lichen.data_richness.sub.plot
+
+
+
+```
+
+### Environmental variables
+
+```{r}
+
+#importing the tree data
+
+
+lichenoldtrees_treedata <- read_excel( "lichenoldtrees_treedata_corrected.xlsx", 
+                                       range = "B7:AS407")
+
+
+#Formatting the data and making the needed variables----
+lichenoldtrees_treedata |>
+  mutate(crownlength_percent = (crownlength/tree_height)*100) %>%
+  mutate(site_index = as.character(site_index)) |>
+  mutate(vegetation_type == factor(vegetation_type,levels = c("Myr",
+                                                              "Sump",
+                                                              "Lav",
+                                                              "Blokkebeer",
+                                                              "Berlyng", 
+                                                              "Blaabeer", 
+                                                              "Smaabregne",
+                                                              "Hogstaude",
+                                                              "laagurt"))) |>
+  mutate(bark_structure.factor = factor(bark_structure, levels = c("1","2","3","4","5"))) %>%
+  mutate(bark_color.factor = factor(bark_color, levels = c("1","2","3","4","5")))  |>
+  mutate(Mork_Hengelav.factor = factor(Mork_Hengelav, levels = c("0","1","2"))) %>%
+  mutate(Lys_Hengelav.factor = factor(Lys_hengelav, levels = c("0","1","2"))) %>%
+  mutate(branch_thickness.bin = as.integer(branch_thickness > 0)) |>
+  mutate(crookedness.factor = factor(crookedness, levels = c("1","2","3","4","5"))) -> lichenoldtrees_treedata
+#site_indexer blir numeriske 
+lichenoldtrees_treedata$site_index <- sub('.', '', lichenoldtrees_treedata$site_index)
+lichenoldtrees_treedata$site_index <- as.numeric(lichenoldtrees_treedata$site_index)
+lichenoldtrees_treedata$elevation <- as.numeric(lichenoldtrees_treedata$elevation )
+
+
+#Transforming branch_thickness into numeric
+lichenoldtrees_treedata$branch_thickness.numeric <- as.numeric(lichenoldtrees_treedata$branch_thickness)
+lichenoldtrees_treedata$vertical_forest_structure.factor <- as.factor(lichenoldtrees_treedata$vertical_forest_structure)
+factor(lichenoldtrees_treedata$vertical_forest_structure.factor, levels = c("Ensjiktet", "Tosjiktet", "Flersjiktet"))
+lichenoldtrees_treedata$plot <- factor(lichenoldtrees_treedata$plot)
+lichenoldtrees_treedata$age <- round(lichenoldtrees_treedata$age, digits = 0)
+
+
+lichenoldtrees_treedata |>
+  mutate( surface_area_tree_m2 = ((((2*pi)*(((dbh^2)/2)))/((2*pi)*(dbh/2))*200))/10000) -> lichenoldtrees_treedata
+
+
+
+
+# remember that all the column names have to match 
+#****fix the name for the response**#
+joined.fielddata <- full_join(lichenoldtrees_treedata,lichen.data_richness.sub.plot  )
+
+joined.fielddata |>
+  mutate(locality =factor(locality)) -> species_richness_age
+
+
+species_richness_age |>
+  filter(!tree_species == "spruce") -> pine_species_richness_age
+
+species_richness_age |>
+  filter(!tree_species == "pine")  -> spruce_species_richness_age
+
+
+
+pine_species_richness_age|>
+  filter(!is.na(locality )) |>
+  ggplot(aes(y= `sum(sub.plot)`, x = age)) +
+  geom_point(size = 5) +
+  geom_smooth(method = "lm") +
+  guides(color = guide_legend(title = "Site index")) +
+  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
+        , axis.line = element_line(colour = "black", size = 1)
+        , axis.ticks.length=unit(.25, "cm")
+        ,  panel.background = element_blank()
+        , axis.title.y = element_text(size = 22, face = "bold")
+        , axis.text.y = element_text(size = 20)
+        , axis.text.x = element_text(size = 20)
+        , axis.title.x = element_text(size = 22, face = "bold" )
+        , plot.title = element_text(size = 14)
+        , legend.text = element_text(size = 20)
+        , legend.title = element_text(size = 22, face = "bold")) +
+  xlim(0,425) +
+  ylim(0,10) -> pine_species_richness_age.subplot
+
+#ggsave("pine_species_richness_age.subplot,.jpeg",pine_species_richness_age.subplot, dpi = 250)
+# 15.9 x 11.3 brukt tidligere
+
+
+print(pine_species_richness_age.subplot)
+
+
+spruce_species_richness_age|>
+  filter(!is.na(locality )) |>
+  ggplot(aes(y= `sum(sub.plot)`, x = age ))+
+  geom_point(aes(), size = 5) +
+  geom_smooth(method = "lm" ) +
+  guides(color = guide_legend(title = "Site index")) +
+  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
+        , axis.line = element_line(colour = "black", size = 1)
+        , axis.ticks.length=unit(.25, "cm")
+        ,  panel.background = element_blank()
+        , axis.title.y = element_text(size = 22, face = "bold")
+        , axis.text.y = element_text(size = 20)
+        , axis.text.x = element_text(size = 20)
+        , axis.title.x = element_text(size = 22, face = "bold" )
+        , plot.title = element_text(size = 14)
+        , legend.text = element_text(size = 20)
+        , legend.title = element_text(size = 22, face = "bold"))  +
+  xlim(0,425) +
+  ylim(0,10) -> spruce_species_richness_age.subplot
+#ggsave("spruce_species_richness_age.subplot.jpeg",spruce_species_richness_age.subplot, dpi = 250)
+
+print(spruce_species_richness_age.subplot)
+
+
+
+```
+
+### Models
+
+```{r}
+
+#pinemodel
+pine_species_richness_age |>
+  filter(!is.na(locality )) -> pine_species_richness_age
+
+
+pinemod_size_independent  <- glmer.nb(`sum(sub.plot)`~  
+                      scale(age, center = T, scale = T)
+                    #+ surface_area_tree_m2 
+                    #+ scale(branch_thickness, center = T, scale = T) 
+                    #+ bark_structure 
+                     #+ scale(dbh, center = T, scale = T)
+                    # + scale(site_index, center = T, scale = T)
+                    #+ scale(basal_area, center = T, scale = T)
+                    + (1|plot/locality) , data = pine_species_richness_age)
+
+
+#spruce model
+
+spruce_species_richness_age|>
+  filter(!is.na(locality )) -> spruce_species_richness_age
+sprucemod_size_independent <- glmer.nb(`sum(sub.plot)`~ scale(age, center = T, scale = T) 
+                      #+ surface_area_tree_m2 
+                      #+ scale(branch_thickness.numeric, center = T, scale = T) 
+                      #+ bark_structure 
+                      #+ scale(dbh, center = T, scale = T)
+                      #+ scale(site_index, center = T, scale = T)
+                      #+ scale(basal_area, center = T, scale = T)
+                      + (1|plot/locality), data = spruce_species_richness_age)
+
+
+sjPlot:: tab_model(sprucemod_size_independent ,pinemod_size_independent )
+```
