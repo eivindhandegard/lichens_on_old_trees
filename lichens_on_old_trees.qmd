@@ -19,7 +19,7 @@ library(tidyverse)
 library(readxl)
 library(lme4)
 library(here)
-
+source("fun_lichens_old_trees.R")
 
 ```
 
@@ -122,24 +122,7 @@ species_richness_age |>
 ### Pine exploratory age plot
 
 ```{r}
-pine_species_richness_age |>
-  ggplot(aes(y= species, x = age)) +
-  geom_point(size = 5) +
-  geom_smooth(method = "lm") +
-  guides(color = guide_legend(title = "Site index")) +
-  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
-        , axis.line = element_line(colour = "black", size = 1)
-        , axis.ticks.length=unit(.25, "cm")
-        ,  panel.background = element_blank()
-        , axis.title.y = element_text(size = 22, face = "bold")
-        , axis.text.y = element_text(size = 20)
-        , axis.text.x = element_text(size = 20)
-        , axis.title.x = element_text(size = 22, face = "bold" )
-        , plot.title = element_text(size = 14)
-        , legend.text = element_text(size = 20)
-        , legend.title = element_text(size = 22, face = "bold")) +
-    xlim(0,425) +
-  ylim(0,30) -> pine_species_richness_age.plot
+pine_species_richness_age.plot <- exploratory_age_plot(pine_species_richness_age) 
 
 # ggsave("pine_species_richness_age.plot.jpeg",pine_species_richness_age.plot, dpi = 250)
 # 15.9 x 11.3 brukt tidligere
@@ -152,25 +135,7 @@ print(pine_species_richness_age.plot)
 
 ```{r}
 
-spruce_species_richness_age|>
-  ggplot(aes(y= species, x = age)) +
-  geom_point(aes(), size = 5) +
-  geom_smooth(method = "lm" ) +
-  guides(color = guide_legend(title = "Site index")) +
-  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
-        , axis.line = element_line(colour = "black", size = 1)
-        , axis.ticks.length=unit(.25, "cm")
-        ,  panel.background = element_blank()
-        , axis.title.y = element_text(size = 22, face = "bold")
-        , axis.text.y = element_text(size = 20)
-        , axis.text.x = element_text(size = 20)
-        , axis.title.x = element_text(size = 22, face = "bold" )
-        , plot.title = element_text(size = 14)
-        , legend.text = element_text(size = 20)
-        , legend.title = element_text(size = 22, face = "bold")) +
-  xlim(0,425) +
-  ylim(0,30) -> spruce_species_richness_age.plot
-# ggsave("spruce_species_richness_age.jpeg",spruce_species_richness_age.plot, dpi = 250)
+spruce_species_richness_age.plot <- exploratory_age_plot(spruce_species_richness_age)|>
 
 print(spruce_species_richness_age.plot)
 ```
@@ -291,6 +256,9 @@ joined.fielddata <- full_join(lichenoldtrees_treedata,lichen.data_richness.sub.p
 joined.fielddata |>
   mutate(locality =factor(locality)) -> species_richness_age
 
+species_richness_age <- species_richness_age |> 
+  transmute(species = `sum(sub.plot)`)
+
 
 species_richness_age |>
   filter(!tree_species == "spruce") -> pine_species_richness_age
@@ -300,25 +268,7 @@ species_richness_age |>
 
 
 
-pine_species_richness_age|>
-  filter(!is.na(locality )) |>
-  ggplot(aes(y= `sum(sub.plot)`, x = age)) +
-  geom_point(size = 5) +
-  geom_smooth(method = "lm") +
-  guides(color = guide_legend(title = "Site index")) +
-  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
-        , axis.line = element_line(colour = "black", size = 1)
-        , axis.ticks.length=unit(.25, "cm")
-        ,  panel.background = element_blank()
-        , axis.title.y = element_text(size = 22, face = "bold")
-        , axis.text.y = element_text(size = 20)
-        , axis.text.x = element_text(size = 20)
-        , axis.title.x = element_text(size = 22, face = "bold" )
-        , plot.title = element_text(size = 14)
-        , legend.text = element_text(size = 20)
-        , legend.title = element_text(size = 22, face = "bold")) +
-  xlim(0,425) +
-  ylim(0,10) -> pine_species_richness_age.subplot
+pine_species_richness_age.subplot <- exploratory_age_plot(pine_species_richness_age )
 
 #ggsave("pine_species_richness_age.subplot,.jpeg",pine_species_richness_age.subplot, dpi = 250)
 # 15.9 x 11.3 brukt tidligere
@@ -326,26 +276,8 @@ pine_species_richness_age|>
 
 print(pine_species_richness_age.subplot)
 
+spruce_species_richness_age.subplot <- exploratory_age_plot(spruce_species_richness_age )
 
-spruce_species_richness_age|>
-  filter(!is.na(locality )) |>
-  ggplot(aes(y= `sum(sub.plot)`, x = age ))+
-  geom_point(aes(), size = 5) +
-  geom_smooth(method = "lm" ) +
-  guides(color = guide_legend(title = "Site index")) +
-  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
-        , axis.line = element_line(colour = "black", size = 1)
-        , axis.ticks.length=unit(.25, "cm")
-        ,  panel.background = element_blank()
-        , axis.title.y = element_text(size = 22, face = "bold")
-        , axis.text.y = element_text(size = 20)
-        , axis.text.x = element_text(size = 20)
-        , axis.title.x = element_text(size = 22, face = "bold" )
-        , plot.title = element_text(size = 14)
-        , legend.text = element_text(size = 20)
-        , legend.title = element_text(size = 22, face = "bold"))  +
-  xlim(0,425) +
-  ylim(0,10) -> spruce_species_richness_age.subplot
 #ggsave("spruce_species_richness_age.subplot.jpeg",spruce_species_richness_age.subplot, dpi = 250)
 
 print(spruce_species_richness_age.subplot)
