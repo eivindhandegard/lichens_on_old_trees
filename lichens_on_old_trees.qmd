@@ -60,54 +60,24 @@ filter(`individuals > 0` == TRUE) |>
 lichenoldtrees_treedata <- readxl::read_xlsx( "lichenoldtrees_treedata_corrected.xlsx", 
                                       range = "B7:AS407")
 
-
-
-#Formatting the data and making the needed variables----
-lichenoldtrees_treedata |>
-  mutate(crownlength_percent = (crownlength/tree_height)*100) %>%
-  mutate(site_index = as.character(site_index)) |>
-  mutate(vegetation_type == factor(vegetation_type,levels = c("Myr",
-                                                              "Sump",
-                                                              "Lav",
-                                                              "Blokkebeer",
-                                                              "Berlyng", 
-                                                              "Blaabeer", 
-                                                              "Smaabregne",
-                                                              "Hogstaude",
-                                                              "laagurt"))) |>
-  mutate(bark_structure.factor = factor(bark_structure, levels = c("1","2","3","4","5"))) %>%
-  mutate(bark_color.factor = factor(bark_color, levels = c("1","2","3","4","5")))  |>
-  mutate(Mork_Hengelav.factor = factor(Mork_Hengelav, levels = c("0","1","2"))) %>%
-  mutate(Lys_Hengelav.factor = factor(Lys_hengelav, levels = c("0","1","2"))) %>%
-  mutate(branch_thickness.bin = as.integer(branch_thickness > 0)) |>
-  mutate(crookedness.factor = factor(crookedness, levels = c("1","2","3","4","5"))) -> lichenoldtrees_treedata
-#site_indexer blir numeriske 
-lichenoldtrees_treedata$site_index <- sub('.', '', lichenoldtrees_treedata$site_index)
-lichenoldtrees_treedata$site_index <- as.numeric(lichenoldtrees_treedata$site_index)
-lichenoldtrees_treedata$elevation <- as.numeric(lichenoldtrees_treedata$elevation )
-
-
-#Transforming branch_thickness into numeric
-lichenoldtrees_treedata$branch_thickness.numeric <- as.numeric(lichenoldtrees_treedata$branch_thickness)
-lichenoldtrees_treedata$vertical_forest_structure.factor <- as.factor(lichenoldtrees_treedata$vertical_forest_structure)
-factor(lichenoldtrees_treedata$vertical_forest_structure.factor, levels = c("Ensjiktet", "Tosjiktet", "Flersjiktet"))
-lichenoldtrees_treedata$plot <- factor(lichenoldtrees_treedata$plot)
-lichenoldtrees_treedata$age <- round(lichenoldtrees_treedata$age, digits = 0)
-
-
-lichenoldtrees_treedata |>
-  mutate( surface_area_tree_m2 = ((((2*pi)*(((dbh^2)/2)))/((2*pi)*(dbh/2))*200))/10000) -> lichenoldtrees_treedata
+lichenoldtrees_treedata <-format_env_data(lichenoldtrees_treedata)
 
 
 
-# remember that all the column names have to match
-joined.fielddata <- full_join(lichenoldtrees_treedata,lichen.data_richness  )
- 
-joined.fielddata |>
-  mutate(species = n) |>
-  mutate(locality =factor(locality)) |>
-  filter(!is.na(species)) -> species_richness_age
+```
 
+### Combining the species data with the environmental variables
+
+```{r}
+
+  
+  # remember that all the column names have to match
+  joined.fielddata <- full_join(lichenoldtrees_treedata, lichen.data_richness )
+  
+  joined.fielddata |>
+    mutate(species = n) |>
+    mutate(locality =factor(locality)) |>
+    filter(!is.na(species)) -> species_richness_age
 
 # making one dataframe for each tree species
 species_richness_age |>
@@ -115,13 +85,12 @@ species_richness_age |>
 
 species_richness_age |>
   filter(!tree_species == "pine") -> spruce_species_richness_age
-
-
 ```
 
 ### Pine exploratory age plot
 
 ```{r}
+  
 pine_species_richness_age.plot <- exploratory_age_plot(pine_species_richness_age) 
 
 # ggsave("pine_species_richness_age.plot.jpeg",pine_species_richness_age.plot, dpi = 250)
@@ -135,7 +104,7 @@ print(pine_species_richness_age.plot)
 
 ```{r}
 
-spruce_species_richness_age.plot <- exploratory_age_plot(spruce_species_richness_age)|>
+spruce_species_richness_age.plot <- exploratory_age_plot(spruce_species_richness_age)
 
 print(spruce_species_richness_age.plot)
 ```
@@ -199,72 +168,26 @@ lichen.data |>
 
 ```
 
-### Environmental variables
+### Subplot figures
 
 ```{r}
 
 #importing the tree data
 
+ 
+# remember that all the column names have to match
+joined.fielddata <- full_join(lichenoldtrees_treedata, lichen.data_richness.sub.plot)
 
-lichenoldtrees_treedata <- read_excel( "lichenoldtrees_treedata_corrected.xlsx", 
-                                       range = "B7:AS407")
-
-
-#Formatting the data and making the needed variables----
-lichenoldtrees_treedata |>
-  mutate(crownlength_percent = (crownlength/tree_height)*100) %>%
-  mutate(site_index = as.character(site_index)) |>
-  mutate(vegetation_type == factor(vegetation_type,levels = c("Myr",
-                                                              "Sump",
-                                                              "Lav",
-                                                              "Blokkebeer",
-                                                              "Berlyng", 
-                                                              "Blaabeer", 
-                                                              "Smaabregne",
-                                                              "Hogstaude",
-                                                              "laagurt"))) |>
-  mutate(bark_structure.factor = factor(bark_structure, levels = c("1","2","3","4","5"))) %>%
-  mutate(bark_color.factor = factor(bark_color, levels = c("1","2","3","4","5")))  |>
-  mutate(Mork_Hengelav.factor = factor(Mork_Hengelav, levels = c("0","1","2"))) %>%
-  mutate(Lys_Hengelav.factor = factor(Lys_hengelav, levels = c("0","1","2"))) %>%
-  mutate(branch_thickness.bin = as.integer(branch_thickness > 0)) |>
-  mutate(crookedness.factor = factor(crookedness, levels = c("1","2","3","4","5"))) -> lichenoldtrees_treedata
-#site_indexer blir numeriske 
-lichenoldtrees_treedata$site_index <- sub('.', '', lichenoldtrees_treedata$site_index)
-lichenoldtrees_treedata$site_index <- as.numeric(lichenoldtrees_treedata$site_index)
-lichenoldtrees_treedata$elevation <- as.numeric(lichenoldtrees_treedata$elevation )
-
-
-#Transforming branch_thickness into numeric
-lichenoldtrees_treedata$branch_thickness.numeric <- as.numeric(lichenoldtrees_treedata$branch_thickness)
-lichenoldtrees_treedata$vertical_forest_structure.factor <- as.factor(lichenoldtrees_treedata$vertical_forest_structure)
-factor(lichenoldtrees_treedata$vertical_forest_structure.factor, levels = c("Ensjiktet", "Tosjiktet", "Flersjiktet"))
-lichenoldtrees_treedata$plot <- factor(lichenoldtrees_treedata$plot)
-lichenoldtrees_treedata$age <- round(lichenoldtrees_treedata$age, digits = 0)
-
-
-lichenoldtrees_treedata |>
-  mutate( surface_area_tree_m2 = ((((2*pi)*(((dbh^2)/2)))/((2*pi)*(dbh/2))*200))/10000) -> lichenoldtrees_treedata
-
-
-
-
-# remember that all the column names have to match 
-#****fix the name for the response**#
-joined.fielddata <- full_join(lichenoldtrees_treedata,lichen.data_richness.sub.plot  )
-
-joined.fielddata |>
-  mutate(locality =factor(locality)) -> species_richness_age
 
 species_richness_age <- species_richness_age |> 
-  transmute(species = `sum(sub.plot)`)
+  mutate(species = `sum(sub.plot)`)
 
 
 species_richness_age |>
-  filter(!tree_species == "spruce") -> pine_species_richness_age
+  filter(tree_species == "pine") -> pine_species_richness_age
 
 species_richness_age |>
-  filter(!tree_species == "pine")  -> spruce_species_richness_age
+  filter(tree_species == "spruce")  -> spruce_species_richness_age
 
 
 
@@ -276,7 +199,7 @@ pine_species_richness_age.subplot <- exploratory_age_plot(pine_species_richness_
 
 print(pine_species_richness_age.subplot)
 
-spruce_species_richness_age.subplot <- exploratory_age_plot(spruce_species_richness_age )
+spruce_species_richness_age.subplot <- exploratory_age_plot(spruce_species_richness_age)
 
 #ggsave("spruce_species_richness_age.subplot.jpeg",spruce_species_richness_age.subplot, dpi = 250)
 
@@ -295,7 +218,7 @@ pine_species_richness_age |>
   filter(!is.na(locality )) -> pine_species_richness_age
 
 
-pinemod_size_independent  <- glmer.nb(`sum(sub.plot)`~  
+pinemod_size_independent  <- glmer.nb(species~  
                       scale(age, center = T, scale = T)
                     #+ surface_area_tree_m2 
                     #+ scale(branch_thickness, center = T, scale = T) 
@@ -310,7 +233,7 @@ pinemod_size_independent  <- glmer.nb(`sum(sub.plot)`~
 
 spruce_species_richness_age|>
   filter(!is.na(locality )) -> spruce_species_richness_age
-sprucemod_size_independent <- glmer.nb(`sum(sub.plot)`~ scale(age, center = T, scale = T) 
+sprucemod_size_independent <- glmer.nb(species~ scale(age, center = T, scale = T) 
                       #+ surface_area_tree_m2 
                       #+ scale(branch_thickness.numeric, center = T, scale = T) 
                       #+ bark_structure 
