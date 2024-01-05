@@ -1,0 +1,296 @@
+---
+title: "lichens on old trees species composition analysis"
+format: html
+editor: visual
+warning: false
+echo: false
+---
+
+# Introduction
+
+In this section, we tested the impact of the age of old trees on the community composition of epiphytic lichens. A multivariate analysis were done based on the total inventory of lichen species of in the first two meters of the sample trees. All, the analyses are divided into tree species. First, I present the unconstrained ordination method NMDS to see how the different explanatory variables relate the the species composition reflected as site scores. Next I controll for confounding variables by partitioning the variation explained by age alone while controlling for tree size and environmental variables describing productivity. This is done with hierarchical variation partitioning with CCA, a method that presents the individual contribution of each explanatory variable as the unique variation explained and the average shared variation with other variables.
+
+#### finding the directory
+
+```{r}
+here::here()
+
+```
+
+### Packages
+
+```{r}
+library(tidyverse)
+library(ggrepel)
+library(readxl)
+library(lme4)
+library(here)
+library(corrplot)
+library(Hmisc)
+library(vegan)
+library(rdacca.hp)
+library(vegan3d)
+source("fun_lichens_old_trees.R")
+```
+
+#### Species data import and formatting whole tree
+
+```{r}
+
+
+#importing the lichen data
+lichen.data <- read_excel("lichen_data.xlsx", range = "B5:R31316")
+
+
+# # Data cleaning
+
+lichen.data %>% 
+  mutate(individuals = replace_na(individuals, replace = 0)) %>%
+  mutate(stem = replace_na(stem, replace = 0)) %>%
+  mutate(living_branch = replace_na(living_branch, replace = 0)) %>%
+  mutate(dead_branch = replace_na(dead_branch, replace = 0)) %>%
+  mutate(cavity = replace_na(cavity, replace = 0)) %>%
+  mutate(crack = replace_na(crack, replace = 0)) %>%
+  mutate(under_branch = replace_na(under_branch, replace = 0)) %>%
+  mutate(southside = replace_na(southside, replace = 0)) %>%
+  mutate(northside = replace_na(northside, replace = 0)) %>%
+  mutate(deadwood_stem = replace_na(deadwood_stem, replace = 0)) -> lichen.data
+
+
+
+lichen.data %>% 
+  mutate(individuals = replace(individuals, individuals > 0, 1)) %>% 
+  filter(!is.na(species)) -> data.subset
+
+# The information about the number of individuals is placed in a wide format as rows for each species
+# To return such an about a unique identifier is needed. This is later then removed
+
+data.subset%>% 
+  group_by(species) %>%
+  mutate(row = row_number()) %>%
+  tidyr::pivot_wider(names_from = species, values_from = individuals) %>%
+  mutate(
+    across(12:123, ~replace_na(.x, 0))) -> species.list
+
+
+
+
+# summarizing all the species from each tree #####
+species.list%>% 
+  group_by(tree_number,locality,datatype, muncipality) %>% 
+  summarise_at(vars(stem: `Cladonia sulphurina`),sum) -> data.per.tree
+
+data.per.tree$locality <- as.factor(data.per.tree$locality)
+
+```
+
+### Environmental variables import and formatting
+
+```{r}
+
+
+lichenoldtrees_treedata <- readxl::read_xlsx( "lichenoldtrees_treedata_corrected.xlsx", 
+                                      range = "B7:AS407")
+
+lichenoldtrees_treedata <-format_env_data(lichenoldtrees_treedata)
+
+lichenoldtrees_treedata |> 
+  mutate(locality = as.factor(locality)) -> lichenoldtrees_treedata
+
+```
+
+#### Combining the species data with the environmental variables
+
+```{r}
+
+  
+# remember that all the column names have to match
+joined.fielddata <- left_join(data.per.tree ,lichenoldtrees_treedata)
+
+#removing NA observations
+joined.fielddata %>% 
+  filter(!is.na(age)) -> species_and_all_variables
+
+joined.fielddata %>% 
+  filter(!is.na(age)) %>% 
+  filter(tree_species == "pine") -> pine.species_and_all_variables
+
+
+joined.fielddata %>% 
+  filter(!is.na(age)) %>% 
+  filter(tree_species == "spruce")  -> spruce.species_and_all_variables
+
+```
+
+## wrangling before ordination
+
+#### Pine
+
+```{r}
+all_data_pine <- pine_ordination_formatting( pine.species_and_all_variables)
+species.only.pine <- all_data_pine[,1:58]
+```
+
+#### Spruce
+
+```{r}
+
+all_data_spruce <- spruce_ordination_formatting( spruce.species_and_all_variables)
+  species.only.spruce <- all_data_spruce[,1:65]
+```
+
+#### reduction in stress with increasing axis number in pine
+
+```{r}
+axes_plot_pine <- nmds_axes(species.only.pine)
+```
+
+#### reduction in stress with increasing axis number in spruce
+
+```{r}
+
+axes_plot_spruce <- nmds_axes(species.only.spruce)
+```
+
+### Pine ordination
+
+```{r}
+
+yolo.pine <- metaMDS(species.only.pine, distance = "bray", k = 4)
+
+
+yolo.env <- envfit(yolo.pine ~ age + branch_thickness + elevation +
+                    site_index + bark_structure +
+                     dbh + basal_area  , strata = all_data_pine$locality, data = all_data_pine)
+
+
+en_coord_cont = as.data.frame(scores(yolo.env, "vectors")) * ordiArrowMul(yolo.env)
+
+
+scores.nmds <- as.data.frame(scores(yolo.pine, "sites") )
+
+
+nmds.plot.pine <- ggplot(data = scores.nmds, aes(x = NMDS1, y = NMDS2)) + 
+  geom_point(data = scores.nmds, aes(),color = "goldenrod1", size = 3, alpha = 0.5) +
+#  scale_colour_manual(values = c("orange", "steelblue","darkgreen")) + 
+  geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+               data = en_coord_cont, size =1, alpha = 0.85, colour = "grey30"
+               ,arrow = arrow(length = unit(0.5, "cm"))) +
+  geom_vline(xintercept = c(0),  linetype = 2, linewidth = 1)  +
+  geom_hline(yintercept = c(0),  linetype = 2, linewidth = 1) + 
+  geom_label_repel(data = en_coord_cont, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+                   fontface = "bold", label = row.names(en_coord_cont)
+                   , nudge_x = 0.2, nudge_y = 0.1, alpha = 0.8
+                   ,label.padding = 0.07) + 
+  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
+        , axis.line = element_line(colour = "black", size = 1)
+        , axis.ticks.length=unit(.25, "cm")
+        ,  panel.background = element_blank()
+        , axis.title.y = element_text(size = 14, face = "bold")
+        , axis.text.y = element_text(size = 16)
+        , axis.text.x = element_text(size = 16)
+        , axis.title.x = element_text(size = 14, face = "bold" )
+        , plot.title = element_text(size = 14)
+        , legend.text = element_text(size = 12)
+        , legend.title = element_text(size = 12, face = "bold")
+        , legend.position = c("none")) +
+  scale_linetype_manual(values=c(1,1,1,5))
+
+print(nmds.plot.pine)
+
+
+```
+
+### Spruce ordination
+
+```{r}
+yolo.spruce <- metaMDS(species.only.spruce, distance = "bray", k = 4)
+sppscores(yolo.spruce) <- species.only.spruce
+
+yolo.env <- envfit(yolo.spruce ~ age + branch_thickness.numeric + elevation +
+                    site_index + bark_structure +
+                     dbh + basal_area, strata = all_data_spruce$locality, data = all_data_spruce)
+
+
+
+en_coord_cont = as.data.frame(scores(yolo.env, "vectors")) * ordiArrowMul(yolo.env)
+
+
+scores.nmds <- as.data.frame(scores(yolo.spruce, "sites") )
+
+
+nmds.plot.spruce <- ggplot(data = scores.nmds, aes(x = NMDS1, y = NMDS2)) + 
+  geom_point(data = scores.nmds, aes(),color = "darkblue", size = 3, alpha = 0.5) +
+#  scale_colour_manual(values = c("orange", "steelblue","darkgreen")) + 
+  geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+               data = en_coord_cont, size =1, alpha = 0.85, colour = "grey30"
+               ,arrow = arrow(length = unit(0.5, "cm"))) +
+  geom_vline(xintercept = c(0),  linetype = 2, linewidth = 1)  +
+  geom_hline(yintercept = c(0),  linetype = 2, linewidth = 1) + 
+  geom_label_repel(data = en_coord_cont, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+                   fontface = "bold", label = row.names(en_coord_cont)
+                   , nudge_x = 0.2, nudge_y = 0.1, alpha = 0.8
+                   ,label.padding = 0.07) + 
+  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
+        , axis.line = element_line(colour = "black", size = 1)
+        , axis.ticks.length=unit(.25, "cm")
+        ,  panel.background = element_blank()
+        , axis.title.y = element_text(size = 14, face = "bold")
+        , axis.text.y = element_text(size = 16)
+        , axis.text.x = element_text(size = 16)
+        , axis.title.x = element_text(size = 14, face = "bold" )
+        , plot.title = element_text(size = 14)
+        , legend.text = element_text(size = 12)
+        , legend.title = element_text(size = 12, face = "bold")
+        , legend.position = c("none")) +
+  scale_linetype_manual(values=c(1,1,1,5))
+
+print(nmds.plot.spruce)
+
+```
+
+## Variation partitioning
+
+### Pine
+
+```{r}
+
+#variation partitioning pine####
+variables <- data.frame(age = all_data_pine$age
+                        ,prod = all_data_pine$site_index
+                        , size = all_data_pine$dbh
+                        , elevation = all_data_pine$elevation
+                        , basal_area =all_data_pine$basal_area,
+                        branch_thickness = all_data_pine$branch_thickness
+                        ,bark_structure = all_data_pine$bark_structure)
+#variation partitioning)
+#nb rda with hellinger versus cca
+mod.pine <- rdacca.hp(species.only.pine,variables, method="CCA", type ="adjR2", var.part = TRUE)
+print(mod.pine$Hier.part)
+
+```
+
+### Spruce
+
+```{r}
+#variation partitioning spruce####
+variables <- data.frame(age = all_data_spruce$age
+                        ,prod = all_data_spruce$site_index
+                        , size = all_data_spruce$dbh
+                        ,branch_thickness = all_data_spruce$branch_thickness
+                        , elevation = all_data_spruce$elevation
+                        ,basal_area = all_data_spruce$basal_area
+                        ,bark_structure = all_data_spruce$bark_structure)
+
+#variation partitioning
+mod.spruce <- rdacca.hp(species.only.spruce,variables, method="CCA", type ="adjR2", var.part = TRUE)
+
+print(mod.spruce$Hier.part)
+```
+
+#### For the curious individuals: All variation components
+
+```{r}
+print(mod.pine)
+print(mod.spruce)
+```
