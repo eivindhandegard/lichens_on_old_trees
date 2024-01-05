@@ -139,6 +139,13 @@ all_data_spruce <- spruce_ordination_formatting( spruce.species_and_all_variable
   species.only.spruce <- all_data_spruce[,1:65]
 ```
 
+#### Both species
+
+```{r}
+all_data_both_species <- both_species_ordination_formatting(species_and_all_variables)
+  species.only <- all_data_both_species[,1:72]
+```
+
 #### reduction in stress with increasing axis number in pine
 
 ```{r}
@@ -249,7 +256,57 @@ print(nmds.plot.spruce)
 
 ```
 
+### Both species
+
+```{r}
+yolo <- metaMDS(species.only, distance = "bray", k = 4)
+sppscores(yolo) <- species.only
+
+yolo.env <- envfit(yolo ~ age + elevation +
+                    site_index + bark_structure +
+                     dbh + basal_area + tree_species, strata = all_data_both_species$locality, data = all_data_both_species)
+
+
+
+en_coord_cont = as.data.frame(scores(yolo.env, "vectors")) * ordiArrowMul(yolo.env)
+
+
+scores.nmds <- as.data.frame(scores(yolo, "sites") )
+
+
+nmds.plot <- ggplot(data = scores.nmds, aes(x = NMDS1, y = NMDS2)) + 
+  geom_point(data = scores.nmds, aes(), size = 3, alpha = 0.5) +
+#  scale_colour_manual(values = c("orange", "steelblue","darkgreen")) + 
+  geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+               data = en_coord_cont, size =1, alpha = 0.85, colour = "grey30"
+               ,arrow = arrow(length = unit(0.5, "cm"))) +
+  geom_vline(xintercept = c(0),  linetype = 2, linewidth = 1)  +
+  geom_hline(yintercept = c(0),  linetype = 2, linewidth = 1) + 
+  geom_label_repel(data = en_coord_cont, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+                   fontface = "bold", label = row.names(en_coord_cont)
+                   , nudge_x = 0.2, nudge_y = 0.1, alpha = 0.8
+                   ,label.padding = 0.07) + 
+  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
+        , axis.line = element_line(colour = "black", size = 1)
+        , axis.ticks.length=unit(.25, "cm")
+        ,  panel.background = element_blank()
+        , axis.title.y = element_text(size = 14, face = "bold")
+        , axis.text.y = element_text(size = 16)
+        , axis.text.x = element_text(size = 16)
+        , axis.title.x = element_text(size = 14, face = "bold" )
+        , plot.title = element_text(size = 14)
+        , legend.text = element_text(size = 12)
+        , legend.title = element_text(size = 12, face = "bold")
+        , legend.position = c("none")) +
+  scale_linetype_manual(values=c(1,1,1,5))
+
+print(nmds.plot)
+
+```
+
 ## Variation partitioning
+
+Explained variation is represented as R^2^~adj~
 
 ### Pine
 
@@ -257,12 +314,13 @@ print(nmds.plot.spruce)
 
 #variation partitioning pine####
 variables <- data.frame(age = all_data_pine$age
-                        ,prod = all_data_pine$site_index
-                        , size = all_data_pine$dbh
+                        ,bark_structure = all_data_pine$bark_structure
+                        ,site_index = all_data_pine$site_index
+                        , dbh = all_data_pine$dbh
                         , elevation = all_data_pine$elevation
                         , basal_area =all_data_pine$basal_area,
                         branch_thickness = all_data_pine$branch_thickness
-                        ,bark_structure = all_data_pine$bark_structure)
+                        )
 #variation partitioning)
 #nb rda with hellinger versus cca
 mod.pine <- rdacca.hp(species.only.pine,variables, method="CCA", type ="adjR2", var.part = TRUE)
@@ -275,17 +333,36 @@ print(mod.pine$Hier.part)
 ```{r}
 #variation partitioning spruce####
 variables <- data.frame(age = all_data_spruce$age
-                        ,prod = all_data_spruce$site_index
-                        , size = all_data_spruce$dbh
+                        ,bark_structure = all_data_spruce$bark_structure
+                        ,site_index = all_data_spruce$site_index
+                        , dbh = all_data_spruce$dbh
                         ,branch_thickness = all_data_spruce$branch_thickness
                         , elevation = all_data_spruce$elevation
                         ,basal_area = all_data_spruce$basal_area
-                        ,bark_structure = all_data_spruce$bark_structure)
+                        )
 
 #variation partitioning
 mod.spruce <- rdacca.hp(species.only.spruce,variables, method="CCA", type ="adjR2", var.part = TRUE)
 
 print(mod.spruce$Hier.part)
+```
+
+### Both species
+
+```{r}
+#variation partitioning both species####
+variables <- data.frame(age = all_data_both_species$age
+                        ,site_index = all_data_both_species$site_index
+                        , dbh = all_data_both_species$dbh
+                        , elevation = all_data_both_species$elevation
+                        ,basal_area = all_data_both_species$basal_area
+                        , tree_species = all_data_both_species$tree_species
+                        )
+
+#variation partitioning
+mod.both_species <- rdacca.hp(species.only,variables, method="CCA", type ="adjR2", var.part = TRUE)
+
+print(mod.both_species$Hier.part)
 ```
 
 #### For the curious individuals: All variation components

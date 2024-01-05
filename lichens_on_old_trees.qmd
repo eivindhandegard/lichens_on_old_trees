@@ -2,7 +2,7 @@
 title: "lichens_on_old_trees"
 format: html
 editor: visual
-warning: true
+warning: false
 echo: false
 ---
 
@@ -128,24 +128,32 @@ species_richness_age |>
 
 ### Descriptive statistics of variables
 
+There are three types of explanatory variables here, all of which have been recorded at sample tree level
+
+Age: Tree age and bark structure ( ordinal 1-4)
+
+Size: DBH and thickness of the the thickest branch. Categorical for pine 0-5, 5-10, 10-20, \> 20
+
+Productivity: Elevation, basal area around each sample tree and site index H40
+
 #### Pine
 
 ```{r}
-  variable_summary_pine <- pine_species_richness_age |> 
-select(age,bark_structure,dbh,branch_thickness,site_index,basal_area,elevation)|> 
+  pine_species_richness_age<- pine_species_richness_age |> 
+select(species,age,bark_structure,dbh,branch_thickness,site_index,basal_area,elevation)|> 
 mutate(branch_thickness = ordered(branch_thickness))
   
-  summary(variable_summary_pine)
+  summary(pine_species_richness_age)
 ```
 
 #### Spruce
 
 ```{r}
   
-variable_summary_spruce <- spruce_species_richness_age |> 
-select(age,bark_structure,dbh,branch_thickness.numeric,site_index,basal_area,elevation)
+spruce_species_richness_age <- spruce_species_richness_age |> 
+select(species,age,bark_structure,dbh,branch_thickness.numeric,site_index,basal_area,elevation)
   
-  summary(variable_summary_spruce)
+  summary(spruce_species_richness_age)
 ```
 
 # Analysis
@@ -153,14 +161,6 @@ select(age,bark_structure,dbh,branch_thickness.numeric,site_index,basal_area,ele
 ## Exploratory analyses
 
 ### Kendall's tau correlation between environmental variables + species richness
-
-There are three types of explanatory variables here, all of which have been recorded at sample tree level
-
-Age: Tree age and bark structure
-
-Size: DBH and thickness of the the thickest branch. Categorical for scots pine 0-5, 5-10, 10-20, \> 20
-
-Productivity: Elevation, basal area and site index H40
 
 **Comments to the correlation plots:**
 
@@ -172,7 +172,6 @@ NB: Beware of Simpson's paradox when interpreting these rank based correlation p
 
 ```{r}
 pine_var <- pine_species_richness_age |>
-  select(species, age,bark_structure,dbh, branch_thickness, site_index,elevation, basal_area) |> 
   mutate(branch_thickness = as.ordered(branch_thickness)) |> 
   mutate(branch_thickness = as.numeric(branch_thickness)) |> 
   filter(!is.na(age))
@@ -191,8 +190,7 @@ pine_var <- pine_species_richness_age |>
 #### Spruce
 
 ```{r}
-spruce_var <- spruce_species_richness_age |>
-select(species, age,bark_structure,dbh, branch_thickness, site_index,elevation, basal_area) |> 
+spruce_var <- spruce_species_richness_age |> 
   filter(!is.na(age))
 
 spruce_var <- apply(spruce_var,2,as.numeric) 
@@ -211,11 +209,11 @@ Site index and elevation are strongly correlated with each other. Therefore, it 
 
 Branch thickness is also clearly correlated with the different productivity variables. This makes sense as low productive forests are more open which equals more light.
 
-The lichen epiphyte richness is correlated
+The lichen epiphyte richness is correlated with all the productivity variables
 
 ### exploratory age plot
 
-The scale of the plots are the same for both tree species
+The scale of the plots are the same for both tree species.
 
 #### Pine exploratory age plot
 
@@ -290,9 +288,11 @@ sjPlot:: tab_model(sprucemod,pinemod,  dv.labels = c("Spruce species richness", 
 
 ```
 
-The lichen epiphyte richness is positively related to tree age for both species, and thus the first null hypothesis is rejected. This association has the strongest evidence for spruce. We go on to the next level in the hypothesis testing
+The lichen epiphyte richness is positively related to tree age for both species, and thus the first null hypothesis is rejected. This association has the strongest evidence for spruce.There appears to be a quite small effect size for both species.
 
-### **Second level: Why could tree age related to increased alpha diversity?**
+We go on to the next level in the hypothesis testing
+
+#### **Second level: Why could tree age related to increased alpha diversity?**
 
 Alternative hypothesis H~a2~: Alpha diversity increases with age because tree size increases with age, which in turn increases the surface for establishment of lichens).
 
@@ -304,7 +304,7 @@ Prediction 2: Species richness increases more with the size than with the age o
 pinemod<- glmer(species~ 
                   scale(age, center = T, scale = T) 
                   + scale(dbh, center = T, scale = T)
-                  + as.ordered(branch_thickness)
+                  + branch_thickness
                  + + (1|locality/plot) , family = ("poisson") , data = pine_species_richness_age)
 
 sprucemod <- glmer(species~ scale(age, center = T, scale = T) 
@@ -315,21 +315,11 @@ sprucemod <- glmer(species~ scale(age, center = T, scale = T)
 sjPlot:: tab_model(sprucemod,pinemod,  dv.labels = c("Spruce species richness", "Pine species richness"))
 ```
 
-The null hypothesis is rejected for spruce, but not none of the variables are significant for pine. The species richness is stronger related to branch thickness than to tree age, but tree age still remains significant. This will be further tested later from the sub-plots on the stem.
+The null hypothesis cannot rejected for spruce, but none of the variables are significant for pine. The species richness seems to more or less equal due tree age and size to tree age. It is also clear from the analysis that alpha diversity is related to large branched trees for spruce trees and not necessarily just large diameter trees. This is likely due to all the pendulous lichens that grow on the branches.
 
-It is also clear from the analysis that alpha diversity is related to large branched trees for spruce trees and not necessarily just big trees
+This will be further tested later from the sub-plots on the stem.
 
-### Testing productivity
-
-If H0 falsified because species diversity increases with age:
-
-Alternative hypothesis H1: Species richness increases with age because of a longer time span for colonization.
-
-Prediction: Species density increases with tree age.
-
-Alternative hypothesis H2: Species diversity increases with age because growth stagnation in older trees facilitate establishment of lichens.
-
-Prediction 1: Species density is more correlated with the average growth rate of the trees than their age.
+#### Testing productivity
 
 ```{r}
 #####
@@ -353,7 +343,7 @@ sprucemod <- glmer(species~ scale(age, center = T, scale = T)
 sjPlot:: tab_model(sprucemod,pinemod,  dv.labels = c("Spruce species richness", "Pine species richness"))
 ```
 
-### Testing everything at once
+#### Testing everything at once
 
 ```{r}
 
@@ -361,7 +351,7 @@ pinemod<- glmer(species~
                   scale(age, center = T, scale = T) 
                   + scale(site_index, center = T, scale = T)
                   + scale(dbh, center = T, scale = T)
-                  + as.ordered(branch_thickness)
+                  + branch_thickness
                  + scale(elevation, center = T, scale = T)
                   + scale(basal_area, center = T, scale = T)
                 + (1 |locality/plot) , family = ("poisson") , data = pine_species_richness_age)
@@ -386,7 +376,9 @@ fullmod<- glmer(species~
 sjPlot:: tab_model(fullmod,  dv.labels = c("Species richness for a model with both trees"))
 ```
 
-The full spruce model has singular random effects structure, but otherwise no error messages.
+### Comments to the models
+
+All of the models converge without any problems. The only error messages are from the spruce models has singular random effects structure, but otherwise no error messages.
 
 ## size independent inventory
 
@@ -460,14 +452,15 @@ spruce_species_richness_age.subplot +
 print(spruce_species_richness_age.subplot)
 ```
 
-### Testing hypothesis 1
+### Testing H~a3:~Species density on the tree stem increases with age because of a longer time span for colonization. 
 
-Alternative hypothesis H3: Species diversity increases with age because tree size increases with age, which in turn increases the surface for establishment of lichen species by long-distance dispersal (followed by more rapid dispersal on the tree).
+If H0 falsified because alpha diversity increases with age then we move on to the species density where the area surveyed is the same.
 
-Prediction  1: Species density ( number of species at a fixed area) increases trees than with the age of trees.
+H~a3~ : Species density on the tree stem increases with age because of a longer time span for colonization.
+
+Prediction 3: Species density increases with tree age.
 
 ```{r}
-
 #pinemodel
 pine_species_richness_age |>
   filter(!is.na(locality )) |> 
@@ -475,7 +468,7 @@ mutate(growthrate = dbh/age)-> pine_species_richness_age
 
 
 pinemod_size_independent  <- glmer(species~  
-                      scale(age, center = T, scale = T) + slope
+                      scale(age, center = T, scale = T)
                     + (1|locality/plot) , family = poisson,
                 data = pine_species_richness_age)
 
@@ -485,14 +478,36 @@ spruce_species_richness_age|>
 mutate(growthrate = dbh/age) |> 
   filter(!is.na(locality )) -> spruce_species_richness_age
 
-sprucemod_size_independent <- glmer(species~ scale(age, center = T, scale = T) + slope
+sprucemod_size_independent <- glmer(species~ scale(age, center = T, scale = T)
                       + (1|locality) #+  (1|plot)
                       , family = poisson,
                 data = spruce_species_richness_age)
 
 
-sjPlot:: tab_model(sprucemod_size_independent ,pinemod_size_independent,dv.labels = c("Spruce species density", "Pine species density") )
+sjPlot:: tab_model(sprucemod_size_independent, pinemod_size_independent,dv.labels = c("Spruce species density", "Pine species density") )
 
+
+#both tree species model
+species_richness_age|>
+mutate(growthrate = dbh/age) |> 
+  filter(!is.na(locality )) -> species_richness_age
+
+full_mod_size_independent <- glmer(species~ scale(age, center = T, scale = T) + tree_species        + (1|locality/plot) 
+                      , family = poisson,
+                data = species_richness_age)
+
+sjPlot:: tab_model(full_mod_size_independent, dv.labels = c("Both tree species  density") )
+```
+
+The null hypothesis is rejected for pine, but not spruce. The species density increases with tree age for pine and we accept H~a3~ .
+
+### Testing H~a4~: Species density on the tree stem increases with age because growth stagnation in older trees 
+
+H~a4~: Species density on the tree stem increases with age because growth stagnation in older trees facilitate establishment of lichens.
+
+Prediction 4: Species density is more correlated with the average growth rate of the trees than their age.
+
+```{r}
 
 #pinemodel
 pine_species_richness_age |>
@@ -509,15 +524,23 @@ pinemod_size_independent_growth_rate  <- glmer(species~
 sprucemod_size_independent_growth_rate <- glmer(species~ scale(growthrate, center = T, scale = T)
                       + (1|locality/plot),family = poisson, data = spruce_species_richness_age)
 
-
 sjPlot:: tab_model(sprucemod_size_independent_growth_rate ,pinemod_size_independent_growth_rate ,dv.labels = c("Spruce species density", "Pine species density") )
+
+
+full_mod_size_independent <- glmer(species~ scale(growthrate, center = T, scale = T) + tree_species        + (1|locality/plot) 
+                      , family = poisson,
+                data = species_richness_age)
+
+sjPlot:: tab_model(full_mod_size_independent, dv.labels = c("Both tree species  density") )
 ```
 
-The null hypothesis is rejected for pine, but not spruce. The species density increases with tree age for pine. This might be because they have more open crowns that are not shading the stem.
+This might be because they have more open crowns that are not shading the stem. It may be that a longer time span for colonization is more important than bark stability for pine. This makes sense as pine trees develop large bark plates that very slippery and can shed.
 
-## Kendall's tau correlation between environmental variables + species density
+### Extra information
 
-#### Pine
+#### Kendall's tau correlation between environmental variables + species density
+
+##### Pine
 
 ```{r}
 pine_var <- pine_species_richness_age |>
@@ -538,7 +561,7 @@ pine_var <- pine_species_richness_age |>
   
 ```
 
-#### Spruce
+##### Spruce
 
 ```{r}
 spruce_var <- spruce_species_richness_age |>

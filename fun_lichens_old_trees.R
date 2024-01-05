@@ -4,7 +4,7 @@
 exploratory_plot <- function(data.frame) {
   attach(data.frame)
 scatterplot_output <- ggplot(data.frame,aes(y= species, x = age)) +
-    geom_point(size = 4) +
+    geom_point(size = 4, alpha = 0.7) +
     geom_smooth(method = "lm") +
     guides(color = guide_legend(title = "Site index")) +
     theme(plot.margin=grid::unit(c(0,0,0,0), "mm")
@@ -148,6 +148,48 @@ spruce_ordination_formatting <- function(variables) {
   
   #
   all_data <- all_data[rowSums(all_data[,1:65])>2,]
+  
+  return(all_data)
+}
+
+
+
+# bothspecies
+both_species_ordination_formatting <- function(both.species_and_all_variables) {
+  both.species_and_all_variables %>% 
+    dplyr :: select(100:149) -> variables.only.both1
+  
+  
+  both.species_and_all_variables %>% 
+    dplyr:: select(1:4) -> variables.only.both2
+  
+  variables.only.both <- cbind(variables.only.both2, variables.only.both1)
+  
+  species.only.both <- both.species_and_all_variables[,16:100] 
+  
+  species.only.both %>%
+    select(!row) %>% 
+    replace(is.na(.), 0) -> species.only.both
+  
+  
+  
+  colSums(species.only.both == "0")
+  empty_columns <- colSums(species.only.both == "0") == nrow(species.only.both)
+  empty_columns
+  
+  species.only.both<- species.only.both[ ,!empty_columns]
+  
+  all_data <- cbind(species.only.both,variables.only.both )
+  
+  
+  # how to find where the environmental variables start
+  grep("tree_number",colnames(all_data ))
+  
+  
+  ## remove the rows with too few species
+  
+  #
+  all_data <- all_data[rowSums(all_data[,1:72])>2,]
   
   return(all_data)
 }
