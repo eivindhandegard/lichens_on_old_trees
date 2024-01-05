@@ -2,7 +2,7 @@
 title: "lichens_on_old_trees"
 format: html
 editor: visual
-warning: false
+warning: true
 echo: false
 ---
 
@@ -54,6 +54,7 @@ here::here()
 #### Packages
 
 ```{r}
+
 library(tidyverse)
 library(readxl)
 library(lme4)
@@ -102,8 +103,6 @@ lichenoldtrees_treedata <- readxl::read_xlsx( "lichenoldtrees_treedata_corrected
 
 lichenoldtrees_treedata <-format_env_data(lichenoldtrees_treedata)
 
-
-
 ```
 
 #### Combining the species data with the environmental variables
@@ -125,6 +124,28 @@ species_richness_age |>
 
 species_richness_age |>
   filter(!tree_species == "pine") -> spruce_species_richness_age
+```
+
+### Descriptive statistics of variables
+
+#### Pine
+
+```{r}
+  variable_summary_pine <- pine_species_richness_age |> 
+select(age,bark_structure,dbh,branch_thickness,site_index,basal_area,elevation)|> 
+mutate(branch_thickness = ordered(branch_thickness))
+  
+  summary(variable_summary_pine)
+```
+
+#### Spruce
+
+```{r}
+  
+variable_summary_spruce <- spruce_species_richness_age |> 
+select(age,bark_structure,dbh,branch_thickness.numeric,site_index,basal_area,elevation)
+  
+  summary(variable_summary_spruce)
 ```
 
 # Analysis
@@ -213,7 +234,7 @@ print(pine_species_richness_age.plot)
 
 ```{r}
 
-spruce_species_richness_age.plot <- exploratory_age_plot(spruce_species_richness_age)
+spruce_species_richness_age.plot <- exploratory_plot(spruce_species_richness_age)
 
 print(spruce_species_richness_age.plot)
 ```
@@ -236,13 +257,16 @@ scatterplot_output <- ggplot(species_richness_age,aes(y= species, x = age, color
           , axis.title.x = element_text(size = 22, face = "bold" )
           , plot.title = element_text(size = 14)
           , legend.text = element_text(size = 12)
-          , legend.title = element_text(size = 14, face = "bold")) +
+          , legend.title = element_text(size = 14, face = "bold")
+          , legend.position = c(0.15,0.85)) +
     xlim(0,425) +
     ylim(0,30) 
 print(scatterplot_output)
 ```
 
 ## Models species richness on the entire sample trees
+
+#### First level
 
 Testing the following hypothesis:
 
@@ -266,15 +290,13 @@ sjPlot:: tab_model(sprucemod,pinemod,  dv.labels = c("Spruce species richness", 
 
 ```
 
-The lichen epiphyte richness is positively related to tree age for both species, and thus the first null hypothesis is rejected.
+The lichen epiphyte richness is positively related to tree age for both species, and thus the first null hypothesis is rejected. This association has the strongest evidence for spruce. We go on to the next level in the hypothesis testing
 
-### Further alternative hypotheses
+### **Second level: Why could tree age related to increased alpha diversity?**
 
-Thus
+Alternative hypothesis H~a2~: Alpha diversity increases with age because tree size increases with age, which in turn increases the surface for establishment of lichens).
 
-Alternative hypothesis H3: Species diversity increases with age because tree size increases with age, which in turn increases the surface for establishment of lichen species by long-distance dispersal (followed by more rapid dispersal on the tree).
-
-Prediction  1: Species richness increases more with the size than with the age of trees.
+Prediction 2: Species richness increases more with the size than with the age of trees.
 
 ```{r}
 #####
@@ -364,6 +386,8 @@ fullmod<- glmer(species~
 sjPlot:: tab_model(fullmod,  dv.labels = c("Species richness for a model with both trees"))
 ```
 
+The full spruce model has singular random effects structure, but otherwise no error messages.
+
 ## size independent inventory
 
 Importing the species data from the plots
@@ -417,7 +441,7 @@ species_richness_age |>
 
 
 
-pine_species_richness_age.subplot <- exploratory_age_plot(pine_species_richness_age )
+pine_species_richness_age.subplot <- exploratory_plot(pine_species_richness_age )
  
 pine_species_richness_age.subplot +
   ylim(0,14)
@@ -427,7 +451,7 @@ pine_species_richness_age.subplot +
 
 print(pine_species_richness_age.subplot)
 
-spruce_species_richness_age.subplot <- exploratory_age_plot(spruce_species_richness_age,spruce_species_richness_age)
+spruce_species_richness_age.subplot <- exploratory_plot(spruce_species_richness_age)
 
 spruce_species_richness_age.subplot + 
   ylim(0,14)
