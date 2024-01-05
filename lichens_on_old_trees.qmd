@@ -361,7 +361,7 @@ fullmod<- glmer(species~
                   scale(age, center = T, scale = T) + tree_species + scale(dbh, center = T, scale = T) + scale(elevation, center = T, scale = T)
                 + (1|locality/plot) , family = ("poisson"),
                 data = species_richness_age)
-sjPlot:: tab_model(fullmod,  dv.labels = c("Species richness both trees"))
+sjPlot:: tab_model(fullmod,  dv.labels = c("Species richness for a model with both trees"))
 ```
 
 ## size independent inventory
