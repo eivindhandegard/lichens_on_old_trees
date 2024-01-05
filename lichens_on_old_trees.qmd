@@ -200,7 +200,7 @@ The scale of the plots are the same for both tree species
 
 ```{r}
   
-pine_species_richness_age.plot <- exploratory_age_plot(pine_species_richness_age) 
+pine_species_richness_age.plot <- exploratory_plot(pine_species_richness_age) 
 
 # ggsave("pine_species_richness_age.plot.jpeg",pine_species_richness_age.plot, dpi = 250)
 # 15.9 x 11.3 brukt tidligere
